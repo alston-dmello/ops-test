@@ -1,0 +1,45 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: litecoin
+spec:
+  serviceName: "litecoin"
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: kraken
+        component: litecoin
+    spec:
+      containers:
+      - name: litecoind
+        image: DRUID_IMAGE
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9332
+          name: rpc
+        - containerPort: 9333
+          name: tcp
+        - containerPort: 19332
+          name: regnet
+        - containerPort: 19333
+          name: testnet          
+      tolerations:
+      - key: "base-nodes"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 2
+            preference:
+              matchExpressions:
+              - key: node-config-type
+                operator: In
+                values:
+                - base-nodes
+      imagePullSecrets:
+      - name: artifactorycred
