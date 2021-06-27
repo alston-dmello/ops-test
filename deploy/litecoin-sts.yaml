@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: litecoind
-        image: DRUID_IMAGE
+        image: {IMAGE_NAME}
         imagePullPolicy: Always
         ports:
         - containerPort: 9332
