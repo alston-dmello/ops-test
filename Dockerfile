@@ -76,5 +76,4 @@ VOLUME ["/home/litecoin/.litecoin"]
 
 EXPOSE 9332 9333 19332 19333 19444
 
-#ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
