@@ -5,6 +5,9 @@ metadata:
 spec:
   serviceName: "litecoin"
   replicas: 1
+  selector:
+    matchLabels:
+      component: litecoin
   updateStrategy:
     type: RollingUpdate
   template:
