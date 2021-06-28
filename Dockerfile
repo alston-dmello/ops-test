@@ -70,6 +70,7 @@ RUN curl -SLO https://download.litecoin.org/litecoin-${LITECOIN_VERSION}/linux/l
   && rm *.tar.gz
 
 COPY docker-entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
 
 VOLUME ["/home/litecoin/.litecoin"]
 
