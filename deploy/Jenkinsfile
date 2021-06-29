@@ -1,0 +1,94 @@
+// Read files from job configs, parameters and from the Jenkins credential store
+def config = fetchConfigs([:])
+config.app_name = env.JOB_BASE_NAME.trim()
+config.app_path = '.'
+config.docker_args = ""
+config.docker_command = []
+if(!config.containsKey('aws_region')) {
+  config.aws_region = 'us-east-1'
+}
+
+params.git_repo = "https://github.com/alston-dmello/ops-test.git"
+
+config.branch = 'main'
+namespace='test'
+image_name="litecoin"
+tag="0.18.1"
+
+
+registry = config.registry_url.replace("https://", "")
+
+pipeline {
+    agent {
+        label "cf_slave"
+    }
+    options { 
+        skipDefaultCheckout() 
+        parallelsAlwaysFailFast()
+    }
+    stages {
+        stage("Checkout") {
+            steps {
+                 
+                checkout(
+				  [
+                    $class: 'GitSCM', 
+                    branches: [[name: config.branch]],
+				    userRemoteConfigs: [[url: params.git_repo]],
+                    relativeTargetDirOprions: [[ $class: 'RelativeTargetDirectory', relativeTargetDir: '.']]
+                  ]
+				)
+            }
+        }
+        stage("Build") {
+            steps {
+                container('build') {
+                    script { 
+					  //Authenticate with Docker repository
+                      authRegistry(config.registry_creds, config.registry_url)
+                      
+					  //Build and  push the Docker image
+                      docker.withRegistry(config.registry_url, config.registry_creds) {
+                        image = docker.build("$registry/$image_name:$tag", " .")
+                        image.push("$tag")
+                      }
+                    
+					}
+                }
+            }
+        }
+
+        stage("Deploy") {
+            steps {
+                container('build') {
+				  script { 
+                    // Authenticate with Kubernetes
+                    authKube(config.kubeconfig_creds)
+                
+				    // Set the image in the statefulset
+					// Create the namespace if it doesn't exist
+					// Create the imagepull secret
+					// Deploy the statefulset
+    				
+					def url = new URL(config.registry_url)
+				    withCredentials([usernamePassword(credentialsId: config.registry_creds,
+                                      usernameVariable: 'registry_user',
+                                      passwordVariable: 'registry_password')]) {
+		               sh """#!/bin/bash
+					         sed -i s#{{IMAGE_NAME}}#${registry}/${image_name}:${tag}#g deploy/litecoin-sts.yaml
+                             kubectl get ns $namespace || (kubectl create ns $namespace)
+                             kubectl create secret docker-registry dockerrepocreds \
+                             --docker-server=${url.getHost()} \
+                             --docker-username=${registry_user} \
+                             --docker-password=${registry_password} \
+                             --docker-email=${registry_user} \
+                             -n $namespace --dry-run -o yaml | kubectl apply -f -   
+                             kubectl apply -f deploy/litecoin-sts.yaml -n $namespace				 
+                          """
+					}
+				}
+			  }
+			}
+		}
+	}
+}
